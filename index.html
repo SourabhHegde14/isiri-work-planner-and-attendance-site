@@ -600,12 +600,14 @@ const empty = (t, b, cta = '') => `<div class="empty"><h3 class="serif">${t}</h3
 /* =====================================================================
    SHARED WIDGETS
    ===================================================================== */
+const locked = t => me && me.role !== 'principal' && t.status === 'done' && t.date < today();
 function taskCard(t, o = {}) {
+  if (o.edit && locked(t)) o = { ...o, edit: false, lock: true };
   const p = M.projects.get(t.projectId), u = M.users.get(t.userId);
   const nx = t.status === 'todo' ? ['progress', 'Start'] : t.status === 'progress' ? ['done', 'Complete ✓'] : ['progress', 'Reopen'];
   return `<article class="task ${t.status}" ${o.edit ? 'draggable="true"' : ''} data-act="open-task" data-id="${t.id}" style="--pc:${hue(t.projectId)}">
     <div class="task-h">${o.edit ? `<button class="tick ${t.status === 'done' ? 'on' : ''}" data-act="tick" data-id="${t.id}" title="Tick when finished">${ic('check', 13)}</button>` : ''}<h4>${esc(t.title)}</h4></div>
-    <div class="chips" style="--pc:${hue(t.projectId)}"><span class="chip proj"><i></i>${esc(p ? p.name : 'Deleted project')}</span>${o.who && u ? `<span class="chip who">${avatar(u, 18)}${esc(u.name.split(' ')[0])}</span>` : ''}${o.when ? `<span class="chip">${ic('cal', 12)}${fmtDate(t.date, { day: 'numeric', month: 'short' })}</span>` : ''}${t.carriedFrom ? '<span class="chip warn">carried over</span>' : ''}</div>
+    <div class="chips" style="--pc:${hue(t.projectId)}"><span class="chip proj"><i></i>${esc(p ? p.name : 'Deleted project')}</span>${o.who && u ? `<span class="chip who">${avatar(u, 18)}${esc(u.name.split(' ')[0])}</span>` : ''}${o.when ? `<span class="chip">${ic('cal', 12)}${fmtDate(t.date, { day: 'numeric', month: 'short' })}</span>` : ''}${t.carriedFrom ? '<span class="chip warn">carried over</span>' : ''}${o.lock ? '<span class="chip">🔒 locked</span>' : ''}</div>
     ${t.remarks ? `<p class="remark">${ic('msg', 13)}<span>${esc(t.remarks)}</span></p>` : ''}
     ${o.edit ? `<div class="task-f"><button class="btn xs" data-act="move" data-id="${t.id}" data-to="${nx[0]}">${nx[1]}</button></div>` : ''}
   </article>`;
@@ -828,9 +830,9 @@ function openTaskForm(t, preProject) {
 }
 function openTask(id) {
   const t = S.tasks.find(x => x.id === id); if (!t) return;
-  if (t.userId === me.id || me.role === 'principal') return openTaskForm(t);
+  if ((t.userId === me.id && !locked(t)) || me.role === 'principal') return openTaskForm(t);
   const p = M.projects.get(t.projectId), u = M.users.get(t.userId);
-  openModal(`${head(esc(t.title), 'Read-only — this task belongs to ' + esc(u ? u.name : 'someone else'))}
+  openModal(`${head(esc(t.title), t.userId === me.id ? '🔒 Locked — completed on an earlier day. Ask the principal if it needs a change.' : 'Read-only — this task belongs to ' + esc(u ? u.name : 'someone else'))}
   <dl class="kv"><dt>Project</dt><dd>${esc(p ? p.name : 'Deleted project')}</dd><dt>Assigned to</dt><dd>${u ? esc(u.name) : '—'}</dd><dt>Date</dt><dd>${fmtDate(t.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</dd><dt>Status</dt><dd><span class="pill ${t.status === 'done' ? 'completed' : t.status}">${STAT[t.status]}</span></dd>${t.completedAt ? `<dt>Completed</dt><dd>${fmtTime(t.completedAt)}</dd>` : ''}<dt>Remarks</dt><dd>${t.remarks ? esc(t.remarks).replace(/\n/g, '<br>') : '<span class="muted">None</span>'}</dd></dl>
   <div class="row between">${me.role === 'principal' ? `<button class="btn soft-danger" data-act="del-task" data-id="${t.id}">${ic('trash', 15)} Delete task</button>` : '<span></span>'}<button class="btn" data-act="close-modal">Close</button></div>`);
 }
@@ -864,6 +866,7 @@ function openEndDay() {
    ===================================================================== */
 function setStatus(id, st) {
   const t = S.tasks.find(x => x.id === id); if (!t || t.userId !== me.id || t.status === st) return;
+  if (locked(t)) return toast('Completed tasks from earlier days are locked. Ask the principal to change it.', 'err');
   Store.put('tasks', { ...t, status: st, completedAt: st === 'done' ? Date.now() : null });
   if (st === 'done') toast('Task completed');
 }
@@ -878,6 +881,7 @@ async function deleteProject(id) {
 }
 async function deleteTask(id) {
   const t = S.tasks.find(x => x.id === id); if (!t) return;
+  if (locked(t)) return toast('Completed tasks from earlier days are locked. Ask the principal to delete it.', 'err');
   if (!await ask({ title: 'Delete this task?', body: `“${esc(t.title)}” will be removed permanently.`, ok: 'Delete task', danger: true })) return;
   Store.remove('tasks', id); toast('Task deleted');
 }
@@ -972,6 +976,7 @@ const FORMS = {
     const title = fd.title.trim(); if (!title) return;
     if (fd.id) {
       const t = S.tasks.find(x => x.id === fd.id); if (!t) return closeModal();
+      if (locked(t)) { closeModal(); return toast('That task is locked.', 'err'); }
       const st = fd.status || t.status;
       Store.put('tasks', { ...t, title, projectId: fd.projectId, date: fd.date, status: st, remarks: (fd.remarks || '').trim(), completedAt: st === 'done' ? (t.completedAt || Date.now()) : null });
       toast('Task updated');

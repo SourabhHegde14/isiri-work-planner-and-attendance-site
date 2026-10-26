@@ -13,6 +13,7 @@ The whole app is one file, `index.html`. There is no build step. Data is stored 
 - Add tasks for today or **schedule them for any future date**. Every task belongs to a project.
 - Jira-style board: **To do → In progress → Completed**. Drag cards between columns or use the buttons. Tick a task to complete it and add remarks.
 - **Finish day** button: tick off the day's tasks, add final remarks, optionally carry unfinished tasks to tomorrow, then log off (records the time out).
+- **Locked records:** once a task is completed and its day has passed, employees can no longer edit, un-tick or delete it. Only the principal can.
 - **Team view:** open any colleague's board for any date (read-only).
 - **Projects:** create projects, **edit project name/client/location/description (fix typos)**, see every task in a project (filter by person), mark a project completed or reopen it, delete a task (one confirmation) or a project (two confirmations, since everyone sees it).
 - **Site visits:** log visits with date, who went and remarks, inside each project.
