@@ -704,7 +704,7 @@ function projectDetail(p) {
       <select class="input" style="width:auto;padding:5px 10px;font-size:12px" data-change="proj-switch">${S.projects.slice().sort(byName).map(x => `<option value="${x.id}" ${x.id === p.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
       <h2 class="serif">${esc(p.name)}</h2><div class="muted" style="margin-top:4px">${esc([p.client, p.location].filter(Boolean).join(' · '))}${p.notes ? `<div style="margin-top:6px;color:var(--text)">${esc(p.notes)}</div>` : ''}</div></div>
     <div class="row wrap">${!done ? `<button class="btn primary" data-act="new-task" data-p="${p.id}">${ic('plus', 15)} Add task</button>` : ''}<button class="btn" data-act="new-visit" data-p="${p.id}">${ic('building', 15)} Log site visit</button>
-      <button class="btn" data-act="toggle-project" data-id="${p.id}">${ic('check', 15)} ${done ? 'Reopen' : 'Mark completed'}</button><button class="btn soft-danger" data-act="del-project" data-id="${p.id}">${ic('trash', 15)} Delete</button></div></div>
+      <button class="btn" data-act="edit-project" data-id="${p.id}">${ic('edit', 15)} Edit</button><button class="btn" data-act="toggle-project" data-id="${p.id}">${ic('check', 15)} ${done ? 'Reopen' : 'Mark completed'}</button><button class="btn soft-danger" data-act="del-project" data-id="${p.id}">${ic('trash', 15)} Delete</button></div></div>
     <div class="row" style="margin-top:18px;gap:14px"><div class="bar grow"><i style="width:${s.pct}%"></i></div><b style="font-size:13px">${s.dn}/${s.n} tasks · ${Math.round(s.pct)}%</b></div></div>
   <div class="row between wrap" style="margin-bottom:16px"><div class="seg2"><button class="${ui.projTab === 'tasks' ? 'on' : ''}" data-act="proj-tab" data-v="tasks">Tasks · ${all.length}</button><button class="${ui.projTab === 'visits' ? 'on' : ''}" data-act="proj-tab" data-v="visits">Site visits · ${vis.length}</button></div>
     ${ui.projTab === 'tasks' ? `<select class="input" style="width:auto" data-change="p-emp"><option value="all">Everyone</option>${E.map(u => `<option value="${u.id}" ${ui.pEmp === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>` : ''}</div>
@@ -740,6 +740,7 @@ function openDay(d) {
     body = `<form data-form="day"><input type="hidden" name="date" value="${d}"><div class="sec">Day note — visible to everyone</div>
       <label class="switch-row"><input type="checkbox" name="holiday" ${di.holiday ? 'checked' : ''}><div><b>Mark as holiday</b><div class="muted" style="font-size:12px">Shows on every employee’s calendar</div></div></label>
       <div class="field"><label>Headline <span class="opt">optional</span></label><input class="input" name="headline" maxlength="80" placeholder="e.g. Diwali break · Client presentation 3 pm" value="${esc(di.headline || '')}"></div>
+      ${di.holiday || di.headline ? `<div class="field"><label>Date of this note <span class="opt">change to move it</span></label><input class="input" type="date" name="newDate" value="${d}"></div>` : ''}
       <div class="row end"><button class="btn primary">Save day note</button></div></form>
     <div class="sec">Attendance</div>
     <table class="t"><thead><tr><th>Employee</th><th>Status</th><th>In</th><th>Out</th><th>Time</th></tr></thead><tbody>${E.map(e => { const pr = presence(e, d), a = pr.a;
@@ -815,7 +816,7 @@ function openTaskForm(t, preProject) {
   const projs = S.projects.filter(p => p.status !== 'completed' || (t && p.id === t.projectId)).sort(byName);
   if (!projs.length) { openModal(`<div class="dlg"><h3>Create a project first</h3><p>Every task belongs to a project so the whole studio can see what it relates to. Create your first project, then add the task.</p><div class="row end"><button class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary" data-act="new-project">New project</button></div></div>`, 'sm'); return; }
   const sel = t ? t.projectId : (preProject || (projs.some(p => p.id === ui.lastProj) ? ui.lastProj : projs[0].id));
-  openModal(`${head(t ? 'Edit task' : 'New task', t ? 'Update details, status or remarks.' : 'Add to today’s agenda — or schedule it for a future day.')}
+  openModal(`${head(t ? 'Edit task' : 'New task', t ? (t.userId !== me.id ? 'Editing ' + esc(t.userName || 'an employee') + '’s task — change title, project, date, status or remarks.' : 'Update details, status or remarks.') : 'Add to today’s agenda — or schedule it for a future day.')}
   <form data-form="task"><input type="hidden" name="id" value="${t ? t.id : ''}">
     <div class="field"><label>Task</label><input class="input" name="title" required maxlength="140" placeholder="e.g. Finalise column layout — Level 2" value="${t ? esc(t.title) : ''}" autofocus></div>
     <div class="grid2"><div class="field"><label>Project</label><select class="input" name="projectId">${projs.map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
@@ -827,18 +828,18 @@ function openTaskForm(t, preProject) {
 }
 function openTask(id) {
   const t = S.tasks.find(x => x.id === id); if (!t) return;
-  if (t.userId === me.id) return openTaskForm(t);
+  if (t.userId === me.id || me.role === 'principal') return openTaskForm(t);
   const p = M.projects.get(t.projectId), u = M.users.get(t.userId);
   openModal(`${head(esc(t.title), 'Read-only — this task belongs to ' + esc(u ? u.name : 'someone else'))}
   <dl class="kv"><dt>Project</dt><dd>${esc(p ? p.name : 'Deleted project')}</dd><dt>Assigned to</dt><dd>${u ? esc(u.name) : '—'}</dd><dt>Date</dt><dd>${fmtDate(t.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</dd><dt>Status</dt><dd><span class="pill ${t.status === 'done' ? 'completed' : t.status}">${STAT[t.status]}</span></dd>${t.completedAt ? `<dt>Completed</dt><dd>${fmtTime(t.completedAt)}</dd>` : ''}<dt>Remarks</dt><dd>${t.remarks ? esc(t.remarks).replace(/\n/g, '<br>') : '<span class="muted">None</span>'}</dd></dl>
   <div class="row between">${me.role === 'principal' ? `<button class="btn soft-danger" data-act="del-task" data-id="${t.id}">${ic('trash', 15)} Delete task</button>` : '<span></span>'}<button class="btn" data-act="close-modal">Close</button></div>`);
 }
-function openProjectForm() {
-  openModal(`${head('New project', 'Visible to the whole studio.')}
-  <form data-form="project"><div class="field"><label>Project name</label><input class="input" name="name" required maxlength="80" placeholder="e.g. Mr. Kiran’s Residence" autofocus></div>
-  <div class="grid2"><div class="field"><label>Client <span class="opt">optional</span></label><input class="input" name="client" maxlength="80" placeholder="Client name"></div><div class="field"><label>Site / location <span class="opt">optional</span></label><input class="input" name="location" maxlength="80" placeholder="e.g. Indiranagar"></div></div>
-  <div class="field"><label>Description <span class="opt">optional</span></label><textarea class="input" name="notes" rows="2" placeholder="Scope, phase, anything the team should know"></textarea></div>
-  <div class="row end"><button type="button" class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary">Create project</button></div></form>`);
+function openProjectForm(p) {
+  openModal(`${head(p ? 'Edit project' : 'New project', p ? 'Fix a typo or update details. Changes show for the whole studio.' : 'Visible to the whole studio.')}
+  <form data-form="project"><input type="hidden" name="id" value="${p ? p.id : ''}"><div class="field"><label>Project name</label><input class="input" name="name" required maxlength="80" placeholder="e.g. Mr. Kiran’s Residence" value="${p ? esc(p.name) : ''}" autofocus></div>
+  <div class="grid2"><div class="field"><label>Client <span class="opt">optional</span></label><input class="input" name="client" maxlength="80" placeholder="Client name" value="${p ? esc(p.client || '') : ''}"></div><div class="field"><label>Site / location <span class="opt">optional</span></label><input class="input" name="location" maxlength="80" placeholder="e.g. Indiranagar" value="${p ? esc(p.location || '') : ''}"></div></div>
+  <div class="field"><label>Description <span class="opt">optional</span></label><textarea class="input" name="notes" rows="2" placeholder="Scope, phase, anything the team should know">${p ? esc(p.notes || '') : ''}</textarea></div>
+  <div class="row end"><button type="button" class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary">${p ? 'Save changes' : 'Create project'}</button></div></form>`);
 }
 function openVisitForm(pid, v) {
   const p = M.projects.get(pid); if (!p) return;
@@ -900,6 +901,7 @@ const ACT = {
   'close-emp'() { ui.teamEmp = null; renderAll(false); },
   'goto-emp'(d) { closeModal(); ui.view = 'team'; ui.teamEmp = d.id; ui.teamDate = d.d || today(); renderAll(false); },
   'new-project'() { openProjectForm(); },
+  'edit-project'(d) { const p = M.projects.get(d.id); if (p) openProjectForm(p); },
   'open-project'(d) { ui.view = 'projects'; ui.projId = d.id; ui.projTab = d.tab || 'tasks'; ui.pEmp = 'all'; renderAll(false); },
   'close-project'() { ui.projId = null; renderAll(false); },
   'proj-filter'(d) { ui.projFilter = d.v; renderAll(true); },
@@ -982,7 +984,12 @@ const FORMS = {
   },
   project(fd) {
     const name = fd.name.trim(); if (!name) return;
-    if (S.projects.some(p => p.name.toLowerCase() === name.toLowerCase())) return toast('A project with that name already exists.', 'err');
+    if (S.projects.some(p => p.id !== fd.id && p.name.toLowerCase() === name.toLowerCase())) return toast('A project with that name already exists.', 'err');
+    if (fd.id) {
+      const old = S.projects.find(x => x.id === fd.id); if (!old) return closeModal();
+      Store.put('projects', { ...old, name, client: (fd.client || '').trim(), location: (fd.location || '').trim(), notes: (fd.notes || '').trim(), editedByName: me.name, editedAt: Date.now() });
+      closeModal(); toast('Project updated'); renderAll(true); return;
+    }
     const p = { id: uid(), name, client: (fd.client || '').trim(), location: (fd.location || '').trim(), notes: (fd.notes || '').trim(), status: 'active', createdById: me.id, createdByName: me.name, createdAt: Date.now(), completedAt: null };
     Store.put('projects', p); ui.lastProj = p.id; closeModal(); toast('Project created');
     if (ui.view === 'projects') { ui.projId = p.id; ui.projTab = 'tasks'; ui.pEmp = 'all'; }
@@ -995,7 +1002,12 @@ const FORMS = {
     closeModal(); toast(old ? 'Site visit updated' : 'Site visit logged'); ui.projTab = 'visits'; renderAll(true);
   },
   day(fd) {
-    const holiday = fd.holiday === 'on', headline = (fd.headline || '').trim();
+    const holiday = fd.holiday === 'on', headline = (fd.headline || '').trim(), nd = fd.newDate || fd.date;
+    if (nd !== fd.date && (holiday || headline)) {
+      if (dayInfo(nd)) return toast('That date already has a note. Open it and edit it instead.', 'err');
+      Store.remove('days', fd.date); Store.put('days', { id: nd, date: nd, holiday, headline, updatedBy: me.name });
+      toast('Moved to ' + fmtDate(nd, { day: 'numeric', month: 'short' })); openDay(nd); renderAll(true); return;
+    }
     if (!holiday && !headline) { if (dayInfo(fd.date)) Store.remove('days', fd.date); toast('Day note cleared'); }
     else { Store.put('days', { id: fd.date, date: fd.date, holiday, headline, updatedBy: me.name }); toast(holiday ? 'Holiday saved' : 'Headline saved'); }
     openDay(fd.date); renderAll(true);

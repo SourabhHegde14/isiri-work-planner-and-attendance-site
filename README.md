@@ -14,14 +14,15 @@ The whole app is one file, `index.html`. There is no build step. Data is stored 
 - Jira-style board: **To do → In progress → Completed**. Drag cards between columns or use the buttons. Tick a task to complete it and add remarks.
 - **Finish day** button: tick off the day's tasks, add final remarks, optionally carry unfinished tasks to tomorrow, then log off (records the time out).
 - **Team view:** open any colleague's board for any date (read-only).
-- **Projects:** create projects, see every task in a project (filter by person), mark a project completed or reopen it, delete a task (one confirmation) or a project (two confirmations, since everyone sees it).
+- **Projects:** create projects, **edit project name/client/location/description (fix typos)**, see every task in a project (filter by person), mark a project completed or reopen it, delete a task (one confirmation) or a project (two confirmations, since everyone sees it).
 - **Site visits:** log visits with date, who went and remarks, inside each project.
 - **Calendar:** see holidays and headlines declared by the principal.
 
 ### Principal architect
 - Dashboard: who is present, tasks completed, active projects, recent site visits, a 14-day attendance chart and upcoming holidays.
 - **Attendance calendar** for every day, with names and in/out times. Past days are permanently stored.
-- **Declare holidays and add headlines** to any day; every employee sees them.
+- **Declare holidays and add headlines** to any day; every employee sees them. Edit them, clear them or **move them to another date**.
+- **Edit any employee's task** (title, project, date, status, remarks), for example to fix a wrong scheduled date.
 - View each employee's tasks and completion progress for today or any other day.
 - **Download an Excel report for any single day** (attendance with in/out times, tasks grouped by project, project summary, site visits), or export everything.
 
